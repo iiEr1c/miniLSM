@@ -39,7 +39,6 @@ uint16_t get_u16(uint8_t first, uint8_t second) {
   }
 }
 
-// https://stackoverflow.com/questions/70317885/creating-a-concept-for-a-non-template-class-with-template-methods
 struct Block {
   // using kv = std::pair<std::span<uint8_t>, std::span<uint8_t>>;
   using iterator_category = std::random_access_iterator_tag;
@@ -231,7 +230,7 @@ struct BlockBuilder {
       std::abort();
     }
 
-    return Block{.data_ = this->data_, .offsets_ = this->offsets_};
+    return Block{this->data_, this->offsets_};
   }
 };
 
