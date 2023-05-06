@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <bit>
 #include <bitset>
 #include <cassert>
 #include <cstdint>
@@ -7,13 +9,14 @@
 #include <fstream>
 #include <iterator>
 #include <list>
+#include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
 
-#include <bit>
-#include <span>
+#include <fmt/core.h>
 
 /**
  * + k_len + k + v_len + v + offsets(n对kv则n个offset) + number of kv +
@@ -40,18 +43,22 @@ uint16_t get_u16(uint8_t first, uint8_t second) {
 }
 
 struct Block {
-  // using kv = std::pair<std::span<uint8_t>, std::span<uint8_t>>;
-  using iterator_category = std::random_access_iterator_tag;
 
   struct kv {
     std::span<uint8_t> key;
     std::span<uint8_t> value;
-    friend bool operator==(const kv &x, const kv &y) noexcept {
-      if (x.key.size() != y.key.size()) {
+
+    friend auto operator<=>(const kv &lhs, const kv &rhs) noexcept {
+      return std::lexicographical_compare_three_way(
+          lhs.key.begin(), lhs.key.end(), rhs.key.begin(), rhs.key.end());
+    }
+
+    friend bool operator==(const kv &lhs, const kv &rhs) noexcept {
+      if (lhs.key.size() != rhs.key.size()) {
         return false;
       }
-      for (size_t i = 0; i < x.key.size(); ++i) {
-        if (x.key[i] != y.key[i]) {
+      for (size_t i = 0; i < lhs.key.size(); ++i) {
+        if (lhs.key[i] != rhs.key[i]) {
           return false;
         }
       }
@@ -89,7 +96,12 @@ struct Block {
   }
 
   struct iterator {
-    using difference_type = int64_t;
+    using iterator_type = iterator;
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = kv;
+    using difference_type = std::ptrdiff_t;
+    using reference = kv &;
+    using pointer = kv *;
 
     Block *ptr;
     difference_type index;
@@ -187,6 +199,42 @@ struct Block {
   auto end() {
     return iterator{
         this, static_cast<iterator::difference_type>(this->offsets_.size())};
+  }
+
+  // 暂时无法提供像lower_bound一样的接口...
+  // 将key转换为K然后再比较?
+  // 这里只比较key
+  template <typename K> iterator lower_bound(K value) {
+    iterator first = begin(), last = end();
+    iterator it;
+    auto count = last - first;
+    assert(count == this->offsets_.size());
+    iterator::difference_type step;
+    while (count > 0) {
+      it = first;
+      step = count / 2;
+      it += step;
+      // 如何比较key的大小呢?
+      auto kvSpan = *it;
+      // need convert to K from std::span<uint8_t>]
+      if constexpr (std::is_same_v<K, std::string_view>) {
+        auto keySV =
+            std::string_view(reinterpret_cast<const char *>(kvSpan.key.data()),
+                             kvSpan.key.size());
+        fmt::print("keySV = {}\n", keySV);
+        if (keySV < value) {
+          first = ++it;
+          count -= step + 1;
+        } else {
+          count = step;
+        }
+      } else {
+        // 后续需要支持uint32_t/uint64_t等?
+        fmt::print("todo: support other type\n");
+      }
+    }
+
+    return first;
   }
 };
 
