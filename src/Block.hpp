@@ -47,7 +47,9 @@ struct Block {
   struct kv {
     std::span<uint8_t> key;
     std::span<uint8_t> value;
-
+    // 这里其实默认key的类型像std::string类似的, 是能顺序比较的类型
+    // 否则如果key是数字类型, 那么则要将其转换成整型再比较
+    // 或者直接将整型转换为string?
     friend auto operator<=>(const kv &lhs, const kv &rhs) noexcept {
       return std::lexicographical_compare_three_way(
           lhs.key.begin(), lhs.key.end(), rhs.key.begin(), rhs.key.end());
