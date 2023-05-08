@@ -1,7 +1,8 @@
 #pragma once
 
+#include "util.hpp"
+
 #include <algorithm>
-#include <bit>
 #include <bitset>
 #include <cassert>
 #include <cstdint>
@@ -18,29 +19,13 @@
 
 #include <fmt/core.h>
 
+using namespace util;
+
 /**
  * + k_len + k + v_len + v + offsets(n对kv则n个offset) + number of kv +
  * + k_len && v_len use uint16_t(2B)+
  */
 // 要求该block的offset不能超过2^16次幂
-
-void put_u16(std::vector<uint8_t> &buf, uint16_t value) {
-  if constexpr (std::endian::native == std::endian::big) {
-    buf.push_back(value >> 8);
-    buf.push_back(value & 0xFF);
-  } else {
-    buf.push_back(value & 0xFF);
-    buf.push_back(value >> 8);
-  }
-}
-
-uint16_t get_u16(uint8_t first, uint8_t second) {
-  if constexpr (std::endian::native == std::endian::big) {
-    return (first << 8) + second;
-  } else {
-    return (second << 8) + first;
-  }
-}
 
 struct Block {
 
